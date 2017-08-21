@@ -41,8 +41,8 @@
               Library:=	libgswteos-10.so
            LibVersion:=	$(shell echo $(STSVersion) | \
 			awk -F . '{printf "%s.%s\n",$$1,$$2}')
-              Program:=	gsw_test
-      $(Program)_SRCS:=	gsw_test.c
+              Program:=	test_strf_1
+      $(Program)_SRCS:=	test_strf_1.c
       $(Program)_LIBS:=	-L. -lgswteos-10 -lm -Wl,-rpath,./
       $(Library)_SRCS:=	gsw_oceanographic_toolbox.c \
 			gsw_saar.c
@@ -69,7 +69,7 @@
 
 all:	$(Library) $(Program)
 
-$(Program):	$($(Program)_SRCS) gsw_test.c
+$(Program):	$($(Program)_SRCS) test_strf_1.c
 	$(GCC) $(CFLAGS) $(CINCLUDES) -o $(Program) $($(Program)_SRCS) \
 		$($(Program)_LIBS)
 

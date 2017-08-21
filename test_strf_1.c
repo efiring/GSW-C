@@ -13,17 +13,18 @@ int main(int argc, char **argv)
     int n;
     double p_ref=0.0;
     double min_p, del_p;
-    int i;
+    int i, err;
 
-    if (argc != 4)
+    if (argc != 5)
     {
-        printf("Usage: gsw_test np min_p del_p\n");
+        printf("Usage: gsw_test np min_p del_p p_ref\n");
         printf("(number of pressures, minimum pressure, pressure increment)\n");
         exit(0);
     }
     n = atoi(argv[1]);
     min_p = atof(argv[2]);
     del_p = atof(argv[3]);
+    p_ref = atof(argv[4]);
 
     sa = malloc(n*sizeof(double));
     ct = malloc(n*sizeof(double));
@@ -38,15 +39,19 @@ int main(int argc, char **argv)
         dh[i] = 0.0/0.0;  /* NaN; ensure the initial value doesn't matter */
     }
 
-    dh = gsw_geo_strf_dyn_height(sa, ct, p, p_ref, n, dh);
+    err = gsw_geo_strf_dyn_height_1(sa, ct, p, p_ref, n, dh);
 
-    if (dh == NULL)
+    if (err)
     {
-        printf("dh is NULL\n");
+        printf("Failed!\n");
         for (i=0; i<n; i++)
         {
              printf("%5.2f  %4.1f  %4.1f\n", p[i], sa[i], ct[i]);
         }
+        free(sa);
+        free(ct);
+        free(p);
+        free(dh);
         exit(-1);
     }
     printf("pressure, salinity, temp., dyn height\n");
