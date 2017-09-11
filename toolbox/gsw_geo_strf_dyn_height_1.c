@@ -1,6 +1,10 @@
 /*
+This is a replacement for gsw_geo_strf_dyn_height, with a different
+signature and interpolation algorithms.
 !==========================================================================
-pure function gsw_geo_strf_dyn_height_1 (sa, ct, p, p_ref)
+int   (returns nonzero on error, 0 if OK)
+gsw_geo_strf_dyn_height_1(double *sa, double *ct, double *p, double p_ref,
+    int nz, double *dyn_height, double max_dp_i, int interp_method)
 !==========================================================================
 !
 !  Calculates dynamic height anomaly as the integral of specific volume
@@ -18,17 +22,22 @@ pure function gsw_geo_strf_dyn_height_1 (sa, ct, p, p_ref)
 !  expression for specific volume of Roquet et al. (2015).
 !
 !  This function evaluates the pressure integral of specific volume using
-!  SA and CT linearly interpolated with respect to pressure.  Additional
-!  interpolation methods may be added or substituted.
+!  SA and CT interpolated with respect to pressure. The interpolation method
+!  may be chosen as linear or "PCHIP", piecewise cubic Hermite using a shape-
+!  preserving algorithm for setting the derivatives.
 !
 !  SA    =  Absolute Salinity                                      [ g/kg ]
 !  CT    =  Conservative Temperature (ITS-90)                     [ deg C ]
-!  p     =  sea pressure                                           [ dbar ]
+!  p     =  sea pressure  (increasing with index)                  [ dbar ]
 !           ( i.e. absolute pressure - 10.1325 dbar )
+!  nz    =  number of points in each array
 !  p_ref =  reference pressure                                     [ dbar ]
 !           ( i.e. reference absolute pressure - 10.1325 dbar )
-!
 !  geo_strf_dyn_height  =  dynamic height anomaly               [ m^2/s^2 ]
+!  max_dp_i = maximum pressure difference between points for triggering
+!              interpolation.
+!  interp_method = 1 for linear, 2 for PCHIP
+!
 !   Note. If p_ref falls outside the range of a
 !     vertical profile, the dynamic height anomaly for each bottle
 !     on the whole vertical profile is returned as NaN.
@@ -316,13 +325,6 @@ static int pchip(double *x, double *y, int n, double *xi, double *yi, int ni)
     ********************************************
 */
 
-/* The original behavior of returning NULL on error is bad; it means that
-   the calling routine must keep a separate record of the dyn_height pointer
-   to free it, or we have to free it here, which is bad because we don't
-   know how it was allocated.
-   Changed to return an int.
-*/
-
 int  /* returns nonzero on error, 0 if OK */
 gsw_geo_strf_dyn_height_1(double *sa, double *ct, double *p, double p_ref,
     int nz, double *dyn_height, double max_dp_i, int interp_method)
@@ -335,16 +337,7 @@ gsw_geo_strf_dyn_height_1(double *sa, double *ct, double *p, double p_ref,
         *dh_i;
     double dh_ref;
 
-/*
-!--------------------------------------------------------------------------
-!  This max_dp_i is the limit we choose for the evaluation of specific
-!  volume in the pressure integration.  That is, the vertical integration
-!  of specific volume with respect to pressure is perfomed with the pressure
-!  increment being no more than max_dp_i (the default value being 1 dbar).
-!--------------------------------------------------------------------------
-*/
-
-    if (nz <= 1)
+    if (nz <= 2)
         return (1);
 
     dp = malloc((nz-1) * sizeof(double));
@@ -456,16 +449,17 @@ gsw_geo_strf_dyn_height_1(double *sa, double *ct, double *p, double p_ref,
         err = linear_interp_SA_CT_for_dh(sa, ct, p, nz,
                                          p_i, n_i,
                                          sa_i, ct_i);
+        if (err) err = 5;
     }
     else if (interp_method == INTERP_METHOD_PCHIP)
     {
         err = pchip(p, sa, nz, p_i, sa_i, n_i);
         err = err || pchip(p, ct, nz, p_i, ct_i, n_i);
+        if (err) err = 6;
     }
     else
     {
-        err = 1;
-        /* FIXME: propagate a separate error code, error msg, etc. */
+        err = 7;
     }
     if (err)
     {
@@ -473,7 +467,7 @@ gsw_geo_strf_dyn_height_1(double *sa, double *ct, double *p, double p_ref,
         free(p_indices);
         free(ct_i);
         free(sa_i);
-        return (5);
+        return (err);
     }
 
     dh_i = malloc(n_i * sizeof(double));
