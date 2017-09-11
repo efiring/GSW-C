@@ -1,6 +1,10 @@
 #  $Id: GNUmakefile,v c61271a7810d 2016/08/19 20:04:03 fdelahoyde $
 #  $Version: 3.05.0-3 $
 #  Makefile for libgswteos-10 on Linux/GNU.
+#
+# To make a debug-build, use:
+#    make DEBUG=1 -f GNUmakefile
+#
 
 .PHONY: all clean install dist new-rpm new-release
 .PHONY: show-release getdocs
